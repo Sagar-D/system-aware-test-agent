@@ -1,0 +1,10 @@
+langchain==1.2.1
+langgraph==1.0.5
+gradio==6.2.0
+langchain-ollama==1.0.1
+langchain-google-genai==4.1.3
+langchain-openai==1.1.7
+langchain-text-splitters==1.1.0
+langsmith
+dotenv
+docling

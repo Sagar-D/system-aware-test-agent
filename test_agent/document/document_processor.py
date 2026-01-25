@@ -37,7 +37,7 @@ def process_document(file: bytes) -> tuple[str, str]:
     return document_hash_id, markdown_content
 
 
-def chunk_markdown_doument(file_content: str) -> list[str]:
+def chunk_markdown_document(file_content: str) -> list[str]:
     text_splitter = MarkdownHeaderTextSplitter(
         headers_to_split_on=[("#", "h1"), ("##", "h2"), ("###", "h3")],
         strip_headers=False,

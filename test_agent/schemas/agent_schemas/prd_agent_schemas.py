@@ -1,23 +1,20 @@
-from pydantic import BaseModel, UUID4, Field
+from pydantic import BaseModel, Field
 from enum import Enum
 from typing import List, Dict, Any, Annotated
+from uuid import UUID
 from langchain_core.messages import BaseMessage
+from langchain_core.documents import Document
 from langgraph.graph import add_messages
 import operator
 
 
-class Chunk(BaseModel):
-    id: str
-    content: str
-    parent_doc_id: UUID4
 
-
-class Document(BaseModel):
+class PrdDocument(BaseModel):
     id: str
-    content: str
+    page_content: str
     version: str = None
     file_path: str = None
-    chunks: List[Chunk] = None
+    chunks: List[Document] = None
 
 
 class FlowType(str, Enum):
@@ -46,14 +43,14 @@ class ConfidenceLevel(str, Enum):
 
 
 class ProductInsight(BaseModel):
-    id: str = Field(..., description="Unique identifier for the product insight")
+    id: UUID = Field(..., description="Unique identifier for the product insight")
 
     title: str = Field(..., description="Short title describing the product flow")
     description: str = Field(
         ..., description="High-level description of the product intent"
     )
 
-    flow_type: FlowType = Field(None, description="Type of product flow")
+    flow_type: FlowType = Field(..., description="Type of product flow")
 
     priority: Priority = Field(..., description="Business priority of the flow")
 
@@ -131,7 +128,7 @@ class ConcernStatus(str, Enum):
 
 
 class Concern(BaseModel):
-    id: str = Field(..., description="Unique identifier for the concern")
+    id: UUID = Field(..., description="Unique identifier for the concern")
 
     related_product_insight_id: str | None = Field(
         None, description="Product insight this concern is related to (if applicable)"
@@ -165,6 +162,7 @@ class Concern(BaseModel):
 
 
 class BaseInsightsSchema(BaseModel) :
+    document: PrdDocument
     insights: Annotated[List[ProductInsight], operator.add] = Field(
         default_factory=list
     )
@@ -173,14 +171,17 @@ class BaseInsightsSchema(BaseModel) :
     config: Annotated[Dict[str, Any], operator.or_] = Field(default_factory=dict)
     var: Annotated[Dict[str, Any], operator.or_] = Field(default_factory=dict)
 
-class InsigntsExtractorState(BaseInsightsSchema):
-    prd_text: str
-    prd_scope: str
+class InsigntsValidatorState(BaseInsightsSchema):
+    prd_chunk: str
+    new_insights: Annotated[List[ProductInsight], operator.add] = Field(
+        default_factory=list
+    )
+    new_concerns: Annotated[List[Concern], operator.add] = Field(default_factory=list)
+    tool_messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
     
 
-class ProductAnalyzerAgentState(BaseInsightsSchema):
+class PrdAnalyzerAgentState(BaseInsightsSchema):
     project_id: str
     release_id: str
-    documents: List[Document]
-    deleted_insights: Annotated[List[str], operator.add] = Field(default_factory=list)
-    deleted_concerns: Annotated[List[str], operator.add] = Field(default_factory=list)
+    deleted_insights: Annotated[List[UUID], operator.add] = Field(default_factory=list)
+    deleted_concerns: Annotated[List[UUID], operator.add] = Field(default_factory=list)

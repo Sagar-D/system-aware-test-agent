@@ -1,20 +1,20 @@
 import gradio as gr
 from test_agent import config
-from test_agent.schemas.agent_schemas.prd_agent_schemas import ProductAnalyzerAgentState, Document
+from test_agent.schemas.agent_schemas.prd_agent_schemas import PrdAnalyzerAgentState, PrdDocument
 from test_agent.document.document_processor import process_document
-from test_agent.agents.prd_agent.product_analyzer_agent import ProductAnalyzerAgent
+from test_agent.agents.prd_agent.prd_analyzer_agent import PrdAnalyzerAgent
 
 def process_files(file: bytes):
     doc_id, doc_content = process_document(file=file)
-    document = Document(id=doc_id, content=doc_content)
+    document = PrdDocument(id=doc_id, page_content=doc_content)
     
-    agent_state = ProductAnalyzerAgentState(
+    agent_state = PrdAnalyzerAgentState(
         project_id= "PROJECT-1",
         release_id= "RELEASE-1",
-        documents=[document]
+        document=document
     )
     
-    agent = ProductAnalyzerAgent()
+    agent = PrdAnalyzerAgent()
     result = agent.invoke(state=agent_state)
     return []
 

@@ -8,3 +8,4 @@ langchain-text-splitters==1.1.0
 langsmith
 dotenv
 docling
+uuid6

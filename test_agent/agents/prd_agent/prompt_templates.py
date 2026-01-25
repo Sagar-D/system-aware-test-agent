@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 
-COMPLETE_PRD_INSIGHTS_GENERATOR_TEMPLATE = ChatPromptTemplate.from_messages(
+PRD_INSIGHTS_EXTRACTOR_TEMPLATE = ChatPromptTemplate.from_messages(
     [
         (
             "system",
@@ -54,64 +54,149 @@ You must now extract ALL Product Insights and ALL Concerns in ONE response.
     ]
 )
 
-CHUNK_LEVEL_PRD_INSIGHTS_GENERATOR_TEMPLATE = ChatPromptTemplate.from_messages(
+from langchain_core.prompts import ChatPromptTemplate
+
+
+CHUNK_LEVEL_PRD_INSIGHTS_VALIDATOR_TEMPLATE = ChatPromptTemplate.from_messages(
     [
-        ("system", """\
-You are a Product Insight Agent.
+        (
+            "system",
+            """\
+You are a Product Insight Validation Agent.
 
-Your task is to extract structured product knowledge from a PARTIAL
-SECTION of a Product Requirement Document (PRD).
+You are reviewing a PARTIAL section (chunk) of a Product Requirement Document (PRD).
+This chunk is NOT the full PRD.
 
-IMPORTANT CONTEXT:
-- This is NOT the full PRD.
-- This section represents only a fragment of the overall product.
-- Missing information outside this section is expected.
-
-You must extract:
-1. Product Insights that are EXPLICITLY described in this section
-2. Concerns that arise DIRECTLY from ambiguity or gaps within this section
-
----------------------
-HOW TO PERFORM THE TASK
----------------------
-
-1. Read the provided section carefully.
-2. Identify product behaviors or rules explicitly stated in this section.
-3. Identify ambiguities or missing details that are relevant to THIS SECTION ONLY.
-4. Record findings using tools.
-
-IMPORTANT RULES:
-- Do NOT assume this section represents the entire product.
-- Do NOT raise concerns about missing features unless they are referenced but undefined in this section.
-- Do NOT infer global behavior.
-- Local, partial insights are acceptable.
-- Emit ALL tool calls in a single response.
-- One insight or concern per tool call.
-
-If no insights or concerns can be extracted from this section, emit no tool calls.
-
-Begin extraction.
-
-"""),
-("human", """\
-Below is a SECTION from a Product Requirement Document.
+Your job is NOT to extract everything from the chunk.
+Your job is to VALIDATE whether this chunk contains any
+IMPORTANT product behaviors or concerns that are MISSING
+from the existing extracted knowledge.
 
 --------------------
-PRD SECTION
+AUTHORITATIVE CONTEXT
+--------------------
+
+• The FULL PRD represents the authoritative product definition.
+• The existing Product Insights and Concerns represent the CURRENT global understanding.
+• This chunk is only supporting evidence.
+
+--------------------
+WHAT YOU MAY ADD
+--------------------
+
+You may add:
+• A Product Insight ONLY IF:
+  - It describes a user-observable product behavior
+  - It is explicitly stated or clearly implied in the chunk
+  - It is NOT already covered by any existing insight
+  - It adds meaningful new understanding of system behavior
+
+• A Concern ONLY IF:
+  - The chunk introduces ambiguity, uncertainty, or an open question
+  - The ambiguity is NOT already captured by an existing concern
+  - The ambiguity affects how the system should behave
+
+--------------------
+WHAT YOU MUST NOT ADD
+--------------------
+
+• Do NOT restate, reword, refine, or split existing insights.
+• Do NOT add design principles, goals, philosophies, or non-goals.
+• Do NOT add implementation details.
+• Do NOT add test ideas.
+• Do NOT infer behavior that is not explicitly supported by the text.
+• Do NOT assume that missing detail is intentional unless stated.
+
+If the chunk only contains:
+• design principles
+• architectural preferences
+• learning goals
+• non-goals
+• implementation guidance
+
+Then you MUST produce NO output.
+
+--------------------
+STRICT LIMITS
+--------------------
+
+• You may add AT MOST:
+  - 3 Product Insights total
+  - 3 Concerns total
+
+• Fewer is better.
+• Zero is a valid and expected outcome.
+
+--------------------
+OUTPUT RULES
+--------------------
+
+• Use tools to add insights or concerns.
+• Make all the tool calls in a single response.
+• Emit ONLY tool calls.
+• If nothing new is found, emit NO output.
+• Do NOT explain your reasoning.
+• Do NOT summarize.
+• Do NOT acknowledge completion.
+
+Proceed carefully and conservatively.
+""",
+        ),
+        (
+            "user",
+            """\
+Below is the FULL Product Requirement Document (PRD).
+
+--------------------
+FULL PRD
 --------------------
 
 {markdown_prd}
 
-This section is only part of a larger document.
-Extract insights and concerns relevant ONLY to this section.
-""")
+--------------------
+EXISTING PRODUCT INSIGHTS
+--------------------
+
+Each line represents an existing insight:
+
+{existing_product_insights}
+
+--------------------
+EXISTING CONCERNS
+--------------------
+
+Each line represents an existing concern:
+
+{existing_concerns}
+
+--------------------
+CURRENT PRD CHUNK
+--------------------
+
+{chunk}
+
+--------------------
+TASK
+--------------------
+
+Review the chunk carefully.
+
+If and ONLY IF the chunk contains a valuable product behavior
+or ambiguity that is NOT already covered above,
+record it using the appropriate tool.
+
+If nothing new is found, produce no output.
+""",
+        ),
     ]
 )
 
 
 PRD_INSIGHTS_REFLECTOR_TEMPLATE = ChatPromptTemplate.from_messages(
     [
-        ("system", """\
+        (
+            "system",
+            """\
 You are a Product Insight Completion Agent.
 
 Your task is to identify MISSING Product Insights and MISSING Concerns
@@ -173,8 +258,11 @@ COMPLETION RULE
 - Do NOT emit summaries or acknowledgements.
 
 Your response must consist ONLY of tool calls (if any).
-"""),
-("user", """\
+""",
+        ),
+        (
+            "user",
+            """\
 Below is the Product Requirement Document (PRD).
 
 --------------------
@@ -201,15 +289,17 @@ TASK
 
 Identify ONLY the Product Insights and Concerns that are MISSING.
 If nothing new is missing, produce no output.
-""")
+""",
+        ),
     ]
 )
 
 
-
 INSIGHTS_DEDUPLICATION_TEMPLATE = ChatPromptTemplate.from_messages(
     [
-        ("system","""\
+        (
+            "system",
+            """\
 You are a Product Insight Deduplication Reviewer.
 
 You are given:
@@ -280,9 +370,12 @@ Your response must consist ONLY of tool calls.
 Your are allowed to pass multiple tool calls in a single response.
 All the tool calls SHOULD BE be added ins a SINGLE response
 
-"""),
-("human", """\
-Below are Product Insights and Concerns extracted from a PRD.
+""",
+        ),
+        (
+            "human",
+            """\
+Below are the Product Insights extracted from a PRD in the format "id - product_insight".
 
 -------------------
 PRODUCT INSIGHTS
@@ -291,6 +384,7 @@ PRODUCT INSIGHTS
 {insights_list}
 
 
+Below are the Concerns extracted from a PRD in the format "id - concern"
 -------------------
 CONCERNS
 -------------------
@@ -303,6 +397,7 @@ TASK
 
 Identify which items are duplicates and should be removed.
 
-""")
+""",
+        ),
     ]
 )

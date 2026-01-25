@@ -3,6 +3,9 @@ from test_agent import config
 from test_agent.schemas.agent_schemas.prd_agent_schemas import PrdAnalyzerAgentState, PrdDocument
 from test_agent.document.document_processor import process_document
 from test_agent.agents.prd_agent.prd_analyzer_agent import PrdAnalyzerAgent
+from test_agent.db.setup import initialize_db
+
+initialize_db()
 
 def process_files(file: bytes):
     doc_id, doc_content = process_document(file=file)

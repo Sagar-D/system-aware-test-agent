@@ -6,7 +6,8 @@ dotenv.load_dotenv()
 env = str(os.getenv("ENV")).lower()
 is_prod = env == "prod"
 
-DATA_DIR = Path(os.getenv("DATA_DIR", "/tmp"))
+DATA_DIR = Path(os.getenv("DATA_DIR", ".data"))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 SUPPORTED_LLM_PLATFORMS = ["ollama", "gemini"]
 DEFAULT_LLM_PLATFORM = "gemini" if is_prod else "ollama"

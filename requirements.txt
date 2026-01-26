@@ -9,3 +9,4 @@ langsmith
 dotenv
 docling
 uuid6
+fastapi[standard]

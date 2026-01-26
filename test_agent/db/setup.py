@@ -33,7 +33,7 @@ default_releases = [
 
 def initialize_db():
 
-    with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
+    with sqlite3.connect(str(config.RELATIONAL_DB_NAME)) as conn:
         conn: sqlite3.Connection
 
         cursor = conn.cursor()
@@ -82,7 +82,8 @@ def initialize_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             modified_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             deleted_at DATETIME DEFAULT NULL,
-            FOREIGN KEY (organization_id) REFERENCES organization(id) ON DELETE CASCADE
+            FOREIGN KEY (organization_id) REFERENCES organization(id) ON DELETE CASCADE,
+            UNIQUE (organization_id, name)
             )
             """
         )
@@ -101,7 +102,8 @@ def initialize_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             locked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             deleted_at DATETIME DEFAULT NULL,
-            FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
+            FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE,
+            UNIQUE (project_id, label)
             )
             """
         )
@@ -190,9 +192,6 @@ def initialize_db():
             )
             """
         )
-
-        conn.commit()
-        cursor.close()
 
 
 if __name__ == "__main__":

@@ -66,8 +66,9 @@ def create_project(organization_id: UUID, project_name: str) -> List[Dict]:
             WHERE project.organization_id = organization.id 
             AND organization.deleted_at is null 
             AND project.deleted_at is null 
-            AND project.name = ? """,
-            (project_name,),
+            AND project.name = ? 
+            AND organization.id = ?""",
+            (project_name, str(organization_id)),
         ).fetchall()
         if result:
             raise ValueError(
@@ -116,10 +117,14 @@ def create_release(
             """SELECT release.label, release.id 
             FROM project INNER JOIN release 
             WHERE project.id = release.project_id 
+            AND release.label = ? 
+            AND project.id = ?
             AND project.deleted_at is null 
-            AND release.deleted_at is null 
-            AND release.label = ? """,
-            (release_label,),
+            AND release.deleted_at is null """,
+            (
+                release_label,
+                str(project_id),
+            ),
         ).fetchall()
         if result:
             raise ValueError(

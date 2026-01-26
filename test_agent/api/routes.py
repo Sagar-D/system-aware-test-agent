@@ -1,7 +1,24 @@
 from fastapi import FastAPI
-from test_agent.schemas.api_schemas.document import IngestDocumentRequest, IngestDocumentResponse
+from test_agent.schemas.api_schemas.document import (
+    IngestDocumentRequest,
+    IngestDocumentResponse,
+)
+from test_agent.schemas.api_schemas.core import (
+    CreateOrganizationRequest,
+    CreateProjectRequest,
+    CreateReleaseRequest,
+    ResourceCreationResponse,
+    ResourceType,
+)
 from uuid import UUID
-from test_agent.db.repositories.core import get_organizations, get_projects, get_releases, create_organization, create_project, create_release
+from test_agent.db.repositories.core import (
+    get_organizations,
+    get_projects,
+    get_releases,
+    create_organization,
+    create_project,
+    create_release,
+)
 
 app = FastAPI()
 
@@ -9,29 +26,47 @@ app = FastAPI()
 @app.get("/organizations")
 def get_organizations_endpoint():
     return get_organizations()
-    
+
 
 @app.get("/projects")
-def get_projects_endpoint(org_id:UUID):
+def get_projects_endpoint(org_id: UUID):
     return get_projects(org_id)
+
 
 @app.get("/releases")
 def get_releases_endpoint(project_id: UUID):
     return get_releases(project_id)
 
+
 @app.post("/organization")
-def create_organization_endpoint(organization_name: str) :
-    organization = create_organization(organization_name)
-    return organization
+def create_organization_endpoint(
+    org: CreateOrganizationRequest,
+) -> ResourceCreationResponse:
+    organization = create_organization(org.name)
+    return ResourceCreationResponse(
+        resource_type=ResourceType.ORGANIZATION,
+        resource_id=organization["id"],
+        metadata=organization,
+    )
+
 
 @app.post("/project")
-def create_project_endpoint(org_id: UUID, project_name: str) :
-    project = create_project(org_id,project_name)
-    return project
+def create_project_endpoint(project: CreateProjectRequest) -> ResourceCreationResponse:
+    project = create_project(project.org_id, project.name)
+    return ResourceCreationResponse(
+        resource_type=ResourceType.PROJECT, resource_id=project["id"], metadata=project
+    )
+
 
 @app.post("/release")
-def create_release_endpoint(project_id: UUID, release_label: str, release_status: str) :
-    release = create_release(project_id, release_label, release_status)
+def create_release_endpoint(release: CreateReleaseRequest) -> ResourceCreationResponse:
+    release = create_release(
+        release.project_id, release.release_label, release.release_status
+    )
+    return ResourceCreationResponse(
+        resource_type=ResourceType.RELEASE, resource_id=release["id"], metadata=release
+    )
+
 
 # @app.post("/documents/upload")
 # def upload_documents_endpoint(data: IngestDocumentRequest) -> IngestDocumentResponse:

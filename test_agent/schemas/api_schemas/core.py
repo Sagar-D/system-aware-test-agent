@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from uuid import UUID
 from enum import Enum
 from typing import Dict
+from test_agent.schemas.api_schemas.common import ReleaseStatus
 
 class CreateOrganizationRequest(BaseModel) :
     name: str
@@ -9,10 +10,6 @@ class CreateOrganizationRequest(BaseModel) :
 class CreateProjectRequest(BaseModel) :
     org_id: UUID
     name: str
-
-class ReleaseStatus(str, Enum):
-    DRAFT = "DRAFT"
-    APPROVED = "APPROVED"
 
 class CreateReleaseRequest(BaseModel) :
     project_id: UUID

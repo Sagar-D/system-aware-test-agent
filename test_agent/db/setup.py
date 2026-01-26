@@ -118,13 +118,17 @@ def initialize_db():
             id UUID PRIMARY KEY,
             project_id UUID NOT NULL,
             release_id UUID NOT NULL,
-            document_types TEXT CHECK(status IN ({", ".join([f"'{status}'" for status in config.RELEASE_STATUS_LIST])})) NOT NULL,
+            document_type TEXT CHECK(document_type IN ({", ".join([f"'{type}'" for type in config.DOCUMENT_TYPES])})) NOT NULL,
             status TEXT CHECK(status IN ({", ".join([f"'{status}'" for status in config.RELEASE_STATUS_LIST])})) NOT NULL,
+            content TEXT NOT NULL,
+            document_hash TEXT DEFAUL NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            locked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             deleted_at DATETIME DEFAULT NULL,
+            locked_at DATETIME DEFAULT NULL,
+            locked_by UUID DEFAULT NULL,
             FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE,
-            FOREIGN KEY (release_id) REFERENCES release(id) ON DELETE CASCADE
+            FOREIGN KEY (release_id) REFERENCES release(id) ON DELETE CASCADE,
+            FOREIGN KEY (locked_by) REFERENCES user(id)
             )
             """
         )
@@ -150,7 +154,7 @@ def initialize_db():
             document_id UUID NOT NULL,
             status TEXT CHECK(status IN ({", ".join([f"'{status}'" for status in config.INSIGHT_STATUS])})) NOT NULL,
             details JSONB NOT NULL,
-            resolved_by UUID NOT NULL,
+            resolved_by UUID DEFAULT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             modified_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             deleted_at DATETIME DEFAULT NULL,

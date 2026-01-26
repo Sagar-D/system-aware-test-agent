@@ -3,15 +3,7 @@ from typing import List, Dict
 from test_agent import config
 from uuid6 import uuid7
 from uuid import UUID
-
-
-def is_valid_uuid(value):
-    try:
-        UUID(str(value))
-        return True
-    except ValueError:
-        return False
-
+from test_agent.utils.common import is_valid_uuid
 
 def get_organizations() -> List[Dict]:
 
@@ -95,7 +87,7 @@ def get_releases(project_id: UUID) -> List[Dict]:
 
     with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
         result = conn.execute(
-            """SELECT * FROM release WHERE project_id = ? AND deleted_at is null""",
+            """SELECT * FROM release WHERE project_id = ? AND deleted_at is null ORDER BY created_at DESC""",
             (str(project_id),),
         ).fetchall()
 
@@ -139,6 +131,28 @@ def create_release(
 
     return {
         "id": release_id,
-        "organization_id": project_id,
+        "project_id": project_id,
         "label": release_label,
     }
+
+def does_release_exist(release_id: UUID) -> bool :
+    if not is_valid_uuid(release_id) :
+        raise ValueError("Release Id should be a valid UUID")
+    with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn :
+        result = conn.execute(
+            """SELECT * from release where id = ?""", (str(release_id),)
+        )
+    if result:
+        return True
+    return False
+
+def does_project_exist(project_id: UUID) -> bool :
+    if not is_valid_uuid(project_id) :
+        raise ValueError("Release Id should be a valid UUID")
+    with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn :
+        result = conn.execute(
+            """SELECT * from project where id = ?""", (str(project_id),)
+        )
+    if result:
+        return True
+    return False

@@ -1,8 +1,10 @@
 from fastapi import FastAPI
+import base64
 from test_agent.schemas.api_schemas.document import (
     IngestDocumentRequest,
     IngestDocumentResponse,
 )
+from test_agent.document.document_processor import get_processed_document, chunk_markdown_document
 from test_agent.schemas.api_schemas.core import (
     CreateOrganizationRequest,
     CreateProjectRequest,
@@ -19,6 +21,7 @@ from test_agent.db.repositories.core import (
     create_project,
     create_release,
 )
+from test_agent.db.repositories.document import store_document, store_document_chunks
 
 app = FastAPI()
 
@@ -68,12 +71,27 @@ def create_release_endpoint(release: CreateReleaseRequest) -> ResourceCreationRe
     )
 
 
-# @app.post("/documents/upload")
-# def upload_documents_endpoint(data: IngestDocumentRequest) -> IngestDocumentResponse:
-#     pass
+@app.post("/document/upload")
+def upload_documents_endpoint(reqBody: IngestDocumentRequest) -> IngestDocumentResponse:
+    
+    encoded_bytes = reqBody.document.document_content_base64.encode("utf-8")
+    doc_content_bytes = base64.b64decode(encoded_bytes, validate=True)
+    doc_hash, doc_content_markdown = get_processed_document(doc_content_bytes)
+    document_id = store_document(
+        project_id=reqBody.project_id,
+        document_type=reqBody.document.document_type,
+        content=doc_content_markdown,
+        document_hash=doc_hash,
+        document_status=reqBody.document.document_status,
+        release_id=reqBody.release_id,
+    )
+    chunks = [chunk.page_content for chunk in chunk_markdown_document(doc_content_markdown)]
+    store_document_chunks(document_id, chunks)
+    return IngestDocumentResponse(status="SUCCESS", document_id=document_id, document_hash=doc_hash)
+
 
 # @app.post("/product/insights/generate")
-# def get_insights_endpoint() :
+# def generate_insights_endpoint() :
 #     pass
 
 # @app.get("product/insights")

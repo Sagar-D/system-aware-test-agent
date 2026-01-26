@@ -30,14 +30,14 @@ def generate_hash(content: Union[bytes, str]) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
-def process_document(file: bytes) -> tuple[str, str]:
+def get_processed_document(file: bytes) -> tuple[str, str]:
 
-    document_hash_id = generate_hash(content=file)
+    document_hash = generate_hash(content=file)
     markdown_content = _convert_to_markdown(file)
-    return document_hash_id, markdown_content
+    return document_hash, markdown_content
 
 
-def chunk_markdown_document(file_content: str) -> list[str]:
+def chunk_markdown_document(file_content: str) -> list[Document]:
     text_splitter = MarkdownHeaderTextSplitter(
         headers_to_split_on=[("#", "h1"), ("##", "h2"), ("###", "h3")],
         strip_headers=False,

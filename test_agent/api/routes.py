@@ -1,18 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 import base64
-from test_agent.schemas.api_schemas.document import (
-    IngestDocumentRequest,
-    IngestDocumentResponse,
-)
-from test_agent.document.document_processor import get_processed_document, chunk_markdown_document
-from test_agent.schemas.api_schemas.core import (
-    CreateOrganizationRequest,
-    CreateProjectRequest,
-    CreateReleaseRequest,
-    ResourceCreationResponse,
-    ResourceType,
-)
 from uuid import UUID
+
+from test_agent.services.document_service import ingest_document
+from test_agent.services.product_service import generate_insights
 from test_agent.db.repositories.core import (
     get_organizations,
     get_projects,
@@ -21,7 +12,23 @@ from test_agent.db.repositories.core import (
     create_project,
     create_release,
 )
-from test_agent.db.repositories.document import store_document, store_document_chunks
+from test_agent.db.repositories.document import get_documents_by_release, does_document_exist
+from test_agent.schemas.api_schemas.core import (
+    CreateOrganizationRequest,
+    CreateProjectRequest,
+    CreateReleaseRequest,
+    ResourceCreationResponse,
+    ResourceType,
+)
+from test_agent.schemas.api_schemas.document import (
+    IngestDocumentRequest,
+    IngestDocumentResponse,
+)
+from test_agent.schemas.api_schemas.product import (
+    GenerateProductInsightsRequest,
+    GenerateProductInsightsResponse,
+)
+
 
 app = FastAPI()
 
@@ -40,6 +47,9 @@ def get_projects_endpoint(org_id: UUID):
 def get_releases_endpoint(project_id: UUID):
     return get_releases(project_id)
 
+@app.get("/documents")
+def get_documents_endpoint(project_id: UUID, release_id: UUID):
+    return [ {"id": doc["id"], "hash": doc["hash"]} for doc in get_documents_by_release(project_id, release_id)]
 
 @app.post("/organization")
 def create_organization_endpoint(
@@ -72,27 +82,44 @@ def create_release_endpoint(release: CreateReleaseRequest) -> ResourceCreationRe
 
 
 @app.post("/document/upload")
-def upload_documents_endpoint(reqBody: IngestDocumentRequest) -> IngestDocumentResponse:
-    
-    encoded_bytes = reqBody.document.document_content_base64.encode("utf-8")
+def upload_documents_endpoint(
+    req_body: IngestDocumentRequest, background_tasks: BackgroundTasks
+) -> IngestDocumentResponse:
+
+    encoded_bytes = req_body.document.document_content_base64.encode("utf-8")
     doc_content_bytes = base64.b64decode(encoded_bytes, validate=True)
-    doc_hash, doc_content_markdown = get_processed_document(doc_content_bytes)
-    document_id = store_document(
-        project_id=reqBody.project_id,
-        document_type=reqBody.document.document_type,
-        content=doc_content_markdown,
-        document_hash=doc_hash,
-        document_status=reqBody.document.document_status,
-        release_id=reqBody.release_id,
+
+    background_tasks.add_task(
+        ingest_document,
+        project_id=req_body.project_id,
+        release_id=req_body.release_id,
+        document=doc_content_bytes,
+        document_type=req_body.document.document_type,
+        document_status=req_body.document.document_status,
     )
-    chunks = [chunk.page_content for chunk in chunk_markdown_document(doc_content_markdown)]
-    store_document_chunks(document_id, chunks)
-    return IngestDocumentResponse(status="SUCCESS", document_id=document_id, document_hash=doc_hash)
+    return IngestDocumentResponse()
 
 
-# @app.post("/product/insights/generate")
-# def generate_insights_endpoint() :
-#     pass
+@app.post("/product/insights/generate")
+def generate_insights_endpoint(
+    req_body: GenerateProductInsightsRequest, backround_tasks: BackgroundTasks
+) -> GenerateProductInsightsResponse:
+
+    if not does_document_exist(req_body.document_id):
+        return GenerateProductInsightsResponse(
+            status="FAIL",
+            message=f"No document found of document_id '{req_body.document_id}'"
+        )
+    backround_tasks.add_task(
+        generate_insights,
+        document_ids=[req_body.document_id],
+        project_id=req_body.project_id,
+        release_id=req_body.release_id,
+    )
+    return GenerateProductInsightsResponse(
+        message=f"Product insights generation initiated for documents - [{req_body.document_id}]"
+    )
+
 
 # @app.get("product/insights")
 # def get_insights_endpoint() :

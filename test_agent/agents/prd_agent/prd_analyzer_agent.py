@@ -2,6 +2,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send
 from langchain.messages import ToolMessage
 from uuid6 import uuid7
+from typing import Dict
 from test_agent.schemas.agent_schemas.prd_agent_schemas import (
     PrdAnalyzerAgentState,
     InsigntsValidatorState,
@@ -11,7 +12,6 @@ from test_agent.schemas.agent_schemas.prd_agent_schemas import (
 from test_agent.agents.prd_agent.chunk_level_insights_validator_agent import (
     InsightsValidatorAgent,
 )
-from test_agent.document.document_processor import chunk_markdown_document
 from test_agent.agents.prd_agent.prompt_templates import (
     PRD_INSIGHTS_EXTRACTOR_TEMPLATE,
     PRD_INSIGHTS_REFLECTOR_TEMPLATE,
@@ -153,9 +153,10 @@ class PrdAnalyzerAgent:
         }
 
     def chunk_documents(self, state: PrdAnalyzerAgentState) -> PrdAnalyzerAgentState:
-        document_chunks = chunk_markdown_document(state.document.page_content)
-        updated_document = state.document.model_copy(update={"chunks": document_chunks})
-        return {"document": updated_document}
+        # document_chunks = chunk_markdown_document(state.document.page_content)
+        # updated_document = state.document.model_copy(update={"chunks": document_chunks})
+        # return {"document": updated_document}
+        return {}
 
     def chunk_level_validation_orchestrator(
         self, state: PrdAnalyzerAgentState
@@ -279,10 +280,19 @@ class PrdAnalyzerAgent:
         print(self.agent.get_graph().draw_ascii())
         self.agent.get_graph().draw_mermaid_png(output_file_path="graph.png")
 
-    def invoke(self, state: PrdAnalyzerAgentState) -> PrdAnalyzerAgentState:
+    def invoke(self, state: PrdAnalyzerAgentState) -> Dict:
 
         if not state.document or state.document.page_content.strip() == "":
             raise ValueError("No document found in Agent State")
 
-        result = self.agent.invoke(state)
+        final_state = self.agent.invoke(state)
+
+        result = {
+            "project_id": final_state["project_id"],
+            "release_id": final_state["release_id"],
+            "document": final_state["document"],
+            "insights": [insight for insight in final_state["insights"] if insight.id not in final_state["deleted_insights"]],
+            "concerns": [concern for concern in final_state["concerns"] if concern.id not in final_state["deleted_concerns"]]
+        }
+
         return result

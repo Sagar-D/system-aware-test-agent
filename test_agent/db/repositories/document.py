@@ -1,6 +1,7 @@
 import sqlite3
 from uuid import UUID
 from uuid6 import uuid7
+from typing import List, Dict
 from test_agent import config
 from test_agent.db.repositories.core import (
     get_releases,
@@ -10,7 +11,7 @@ from test_agent.db.repositories.core import (
 from test_agent.utils.common import is_valid_uuid
 
 
-def store_document(
+def create_document(
     project_id: UUID,
     document_type: str,
     content: str,
@@ -68,6 +69,45 @@ def store_document(
         )
     return document_id
 
+def get_documents_by_release(project_id: UUID, release_id: UUID) -> List[Dict]:
+
+    if (not is_valid_uuid(project_id)) or (not is_valid_uuid(release_id)):
+        raise ValueError("ProjectID and ReleaseID should be a valid UUID")
+    if not does_project_exist(project_id):
+        raise ValueError(f"No active project found for project_id - '{project_id}'")
+    if not does_release_exist(project_id):
+        raise ValueError(
+            f"No active release found for release_id - '{release_id}' under project '{project_id}'"
+        )
+
+    with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
+        result = conn.execute(
+            """SELECT id, document_hash, content FROM document WHERE project_id = ? AND release_id = ? AND deleted_at is null""",
+            (
+                str(project_id),
+                str(release_id),
+            ),
+        ).fetchall()
+
+    return [
+        {"id": row[0], "hash": row[1], "content": row[2]}
+        for row in result
+    ]
+
+def get_documents_by_ids(document_ids: List[UUID]) -> List[Dict]:
+
+    with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
+        result = conn.execute(
+            f"""SELECT id, document_hash, content FROM document WHERE id IN (?) AND deleted_at IS null""",
+            (",".join([str(id) for id in document_ids]),),
+        ).fetchall()
+
+    return [
+        {"id": row[0], "hash": row[1], "content": row[2]}
+        for row in result
+    ]
+
+
 
 def does_document_exist(document_id) -> bool:
     if not is_valid_uuid(document_id):
@@ -81,13 +121,11 @@ def does_document_exist(document_id) -> bool:
     return False
 
 
-def store_document_chunks(
-    document_id: UUID, chunks: list[str]
-) -> UUID:
-    
+def create_document_chunks(document_id: UUID, chunks: list[str]) -> UUID:
+
     if not does_document_exist(document_id):
         raise ValueError(f"Document Not Found: document_id - {document_id}")
-    
+
     chunk_ids = []
     for index, chunk_content in enumerate(chunks):
 
@@ -117,3 +155,21 @@ def store_document_chunks(
             )
             chunk_ids.append(chunk_id)
     return chunk_ids
+
+def get_document_chunks(document_id: UUID) -> List[Dict] :
+
+    if not does_document_exist(document_id):
+        raise ValueError(f"Document '{document_id}' Does not Exist!")
+    
+    with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
+        result = conn.execute(
+            """SELECT id, chunk_index, content FROM document_chunk 
+            WHERE document_id = ? AND deleted_at is null 
+            ORDER BY chunk_index ASC""",
+            (str(document_id),),
+        ).fetchall()
+
+    return [
+        {"id": row[0], "chunk_index": row[1], "content": row[2]}
+        for row in result
+    ]

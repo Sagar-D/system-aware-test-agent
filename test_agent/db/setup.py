@@ -147,12 +147,32 @@ def initialize_db():
         )
 
         cursor.execute(
-            f"""CREATE TABLE IF NOT EXISTS insight(
+            f"""CREATE TABLE IF NOT EXISTS product_insight(
             id UUID PRIMARY KEY,
             project_id UUID NOT NULL,
             release_id UUID NOT NULL,
             document_id UUID NOT NULL,
             status TEXT CHECK(status IN ({", ".join([f"'{status}'" for status in config.INSIGHT_STATUS])})) NOT NULL,
+            details JSONB CHECK(json_valid(details)) NOT NULL,
+            resolved_by UUID DEFAULT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            modified_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            deleted_at DATETIME DEFAULT NULL,
+            FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE,
+            FOREIGN KEY (release_id) REFERENCES release(id) ON DELETE CASCADE,
+            FOREIGN KEY (document_id) REFERENCES document(id) ON DELETE CASCADE,
+            FOREIGN KEY (resolved_by) REFERENCES user(id)
+            )
+            """
+        )
+
+        cursor.execute(
+            f"""CREATE TABLE IF NOT EXISTS product_concern(
+            id UUID PRIMARY KEY,
+            project_id UUID NOT NULL,
+            release_id UUID NOT NULL,
+            document_id UUID NOT NULL,
+            status TEXT CHECK(status IN ({", ".join([f"'{status}'" for status in config.CONCERN_STATUS])})) NOT NULL,
             details JSONB NOT NULL,
             resolved_by UUID DEFAULT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -167,27 +187,7 @@ def initialize_db():
         )
 
         cursor.execute(
-            f"""CREATE TABLE IF NOT EXISTS concern(
-            id UUID PRIMARY KEY,
-            project_id UUID NOT NULL,
-            release_id UUID NOT NULL,
-            document_id UUID NOT NULL,
-            status TEXT CHECK(status IN ({", ".join([f"'{status}'" for status in config.CONCERN_STATUS])})) NOT NULL,
-            details JSONB NOT NULL,
-            resolved_by UUID NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            modified_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            deleted_at DATETIME DEFAULT NULL,
-            FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE,
-            FOREIGN KEY (release_id) REFERENCES release(id) ON DELETE CASCADE,
-            FOREIGN KEY (document_id) REFERENCES document(id) ON DELETE CASCADE,
-            FOREIGN KEY (resolved_by) REFERENCES user(id)
-            )
-            """
-        )
-
-        cursor.execute(
-            f"""CREATE TABLE IF NOT EXISTS concern_insights(
+            f"""CREATE TABLE IF NOT EXISTS product_concern_insights(
             concern_id UUID NOT NULL,
             insight_id UUID NOT NULL,
             PRIMARY KEY (concern_id, insight_id)

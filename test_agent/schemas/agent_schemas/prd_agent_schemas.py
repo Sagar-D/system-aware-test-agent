@@ -11,6 +11,7 @@ import operator
 
 class PrdDocument(BaseModel):
     id: str
+    hash: str
     page_content: str
     version: str = None
     file_path: str = None

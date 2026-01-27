@@ -25,6 +25,5 @@ class IngestDocumentRequest(BaseModel):
     document: Document
 
 class IngestDocumentResponse(BaseModel):
-    status: str
-    document_id: UUID
-    document_hash: str
+    status: str = "INITIATED"
+    message: str = "Document Ingestion is initiated"

@@ -12,7 +12,11 @@ from test_agent.db.repositories.core import (
     create_project,
     create_release,
 )
-from test_agent.db.repositories.document import get_documents_by_release, does_document_exist
+from test_agent.db.repositories.document import (
+    get_documents_by_release,
+    does_document_exist,
+)
+from test_agent.db.repositories.product import get_insights, get_concerns
 from test_agent.schemas.api_schemas.core import (
     CreateOrganizationRequest,
     CreateProjectRequest,
@@ -47,9 +51,14 @@ def get_projects_endpoint(org_id: UUID):
 def get_releases_endpoint(project_id: UUID):
     return get_releases(project_id)
 
+
 @app.get("/documents")
 def get_documents_endpoint(project_id: UUID, release_id: UUID):
-    return [ {"id": doc["id"], "hash": doc["hash"]} for doc in get_documents_by_release(project_id, release_id)]
+    return [
+        {"id": doc["id"], "hash": doc["hash"]}
+        for doc in get_documents_by_release(project_id, release_id)
+    ]
+
 
 @app.post("/organization")
 def create_organization_endpoint(
@@ -108,7 +117,7 @@ def generate_insights_endpoint(
     if not does_document_exist(req_body.document_id):
         return GenerateProductInsightsResponse(
             status="FAIL",
-            message=f"No document found of document_id '{req_body.document_id}'"
+            message=f"No document found of document_id '{req_body.document_id}'",
         )
     backround_tasks.add_task(
         generate_insights,
@@ -121,13 +130,15 @@ def generate_insights_endpoint(
     )
 
 
-# @app.get("product/insights")
-# def get_insights_endpoint() :
-#     pass
+@app.get("/product/insights")
+def get_insights_endpoint(project_id: UUID, release_id: UUID, document_id: UUID = None):
+    return get_insights(project_id, release_id, document_id)
 
-# @app.get("product/concerns")
-# def get_concerns_endpoint() :
-#     pass
+
+@app.get("/product/concerns")
+def get_concerns_endpoint(project_id: UUID, release_id: UUID, document_id: UUID = None):
+    return get_concerns(project_id, release_id, document_id)
+
 
 # @app.post("product/insights")
 # def create_insights_endpoint() :

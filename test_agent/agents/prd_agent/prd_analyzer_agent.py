@@ -1,13 +1,10 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send
 from langchain.messages import ToolMessage
-from uuid6 import uuid7
 from typing import Dict
 from test_agent.schemas.agent_schemas.prd_agent_schemas import (
     PrdAnalyzerAgentState,
     InsigntsValidatorState,
-    ProductInsight,
-    Concern,
 )
 from test_agent.agents.prd_agent.chunk_level_insights_validator_agent import (
     InsightsValidatorAgent,
@@ -24,6 +21,8 @@ from test_agent.agents.prd_agent.insight_tools import (
     add_product_insight,
     delete_concern,
     delete_product_insight,
+    build_product_insight,
+    build_product_concern,
 )
 
 
@@ -50,9 +49,12 @@ class PrdAnalyzerAgent:
         for tool_call in state.messages[-1].tool_calls:
             if tool_call["name"] == "add_product_insight":
                 try:
-                    tool_call["args"]["id"] = uuid7()
-                    tool_results = add_product_insight.invoke(tool_call["args"])
-                    insights.append(ProductInsight(**tool_results))
+                    insights.append(
+                        build_product_insight(
+                            raw_insight=tool_call["args"],
+                            source_document_id=state.document.id,
+                        )
+                    )
                     tool_messages.append(
                         ToolMessage(
                             content="Successfully added Product Insight",
@@ -63,9 +65,12 @@ class PrdAnalyzerAgent:
                     print(f"Failed to add an insight to the list \n Exception : {e}")
             if tool_call["name"] == "add_concern":
                 try:
-                    tool_call["args"]["id"] = uuid7()
-                    tool_results = add_concern.invoke(tool_call["args"])
-                    concerns.append(Concern(**tool_results))
+                    concerns.append(
+                        build_product_concern(
+                            raw_concern=tool_call["args"],
+                            source_document_id=state.document.id,
+                        )
+                    )
                     tool_messages.append(
                         ToolMessage(
                             content="Successfully added Concern",
@@ -291,8 +296,16 @@ class PrdAnalyzerAgent:
             "project_id": final_state["project_id"],
             "release_id": final_state["release_id"],
             "document": final_state["document"],
-            "insights": [insight for insight in final_state["insights"] if insight.id not in final_state["deleted_insights"]],
-            "concerns": [concern for concern in final_state["concerns"] if concern.id not in final_state["deleted_concerns"]]
+            "insights": [
+                insight
+                for insight in final_state["insights"]
+                if insight.id not in final_state["deleted_insights"]
+            ],
+            "concerns": [
+                concern
+                for concern in final_state["concerns"]
+                if concern.id not in final_state["deleted_concerns"]
+            ],
         }
 
         return result

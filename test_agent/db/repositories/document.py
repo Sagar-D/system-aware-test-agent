@@ -69,6 +69,7 @@ def create_document(
         )
     return document_id
 
+
 def get_documents_by_release(project_id: UUID, release_id: UUID) -> List[Dict]:
 
     if (not is_valid_uuid(project_id)) or (not is_valid_uuid(release_id)):
@@ -89,10 +90,8 @@ def get_documents_by_release(project_id: UUID, release_id: UUID) -> List[Dict]:
             ),
         ).fetchall()
 
-    return [
-        {"id": row[0], "hash": row[1], "content": row[2]}
-        for row in result
-    ]
+    return [{"id": row[0], "hash": row[1], "content": row[2]} for row in result]
+
 
 def get_documents_by_ids(document_ids: List[UUID]) -> List[Dict]:
 
@@ -102,20 +101,38 @@ def get_documents_by_ids(document_ids: List[UUID]) -> List[Dict]:
             (",".join([str(id) for id in document_ids]),),
         ).fetchall()
 
-    return [
-        {"id": row[0], "hash": row[1], "content": row[2]}
-        for row in result
-    ]
+    return [{"id": row[0], "hash": row[1], "content": row[2]} for row in result]
 
 
-
-def does_document_exist(document_id) -> bool:
+def does_document_exist(
+    document_id: UUID, project_id: UUID = None, release_id: UUID = None
+) -> bool:
     if not is_valid_uuid(document_id):
-        raise ValueError("Document Id should be a valid UUID")
+        raise ValueError("document_id should be a valid UUID")
+    if project_id and not is_valid_uuid(project_id):
+        raise ValueError("project_id should be a valid UUID")
+    if release_id and not is_valid_uuid(release_id):
+        raise ValueError("release_id should be a valid UUID")
+
+    query_conditions = [
+        "id = ?",
+    ]
+    query_values = [
+        str(document_id),
+    ]
+    if project_id:
+        query_conditions.append("AND project_id = ?")
+        query_values.append(str(project_id))
+    if release_id:
+        query_conditions.append("AND release_id = ?")
+        query_values.append(str(release_id))
+
     with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
         result = conn.execute(
-            """SELECT * from document where id = ?""", (str(document_id),)
-        )
+            f"""SELECT * from document where {" ".join(query_conditions)}""",
+            tuple(query_values),
+        ).fetchall()
+
     if result:
         return True
     return False
@@ -156,11 +173,12 @@ def create_document_chunks(document_id: UUID, chunks: list[str]) -> UUID:
             chunk_ids.append(chunk_id)
     return chunk_ids
 
-def get_document_chunks(document_id: UUID) -> List[Dict] :
+
+def get_document_chunks(document_id: UUID) -> List[Dict]:
 
     if not does_document_exist(document_id):
         raise ValueError(f"Document '{document_id}' Does not Exist!")
-    
+
     with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
         result = conn.execute(
             """SELECT id, chunk_index, content FROM document_chunk 
@@ -169,7 +187,4 @@ def get_document_chunks(document_id: UUID) -> List[Dict] :
             (str(document_id),),
         ).fetchall()
 
-    return [
-        {"id": row[0], "chunk_index": row[1], "content": row[2]}
-        for row in result
-    ]
+    return [{"id": row[0], "chunk_index": row[1], "content": row[2]} for row in result]

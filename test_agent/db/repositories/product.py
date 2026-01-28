@@ -2,7 +2,10 @@ import sqlite3
 from typing import List
 from uuid import UUID
 from test_agent import config
-from test_agent.schemas.agent_schemas.prd_agent_schemas import ProductInsight, Concern
+from test_agent.schemas.agent_schemas.prd_agent_schemas import (
+    ProductInsight,
+    ProductConcern,
+)
 from test_agent.utils.common import is_valid_uuid
 from test_agent.db.repositories.core import does_project_exist, does_release_exist
 from test_agent.db.repositories.document import does_document_exist
@@ -12,8 +15,7 @@ def create_insights(
     project_id: UUID,
     release_id: UUID,
     document_id: UUID,
-    status: str,
-    insights: List[ProductInsight],
+    product_insights: List[ProductInsight],
 ) -> List[UUID]:
 
     data = [
@@ -22,10 +24,10 @@ def create_insights(
             str(project_id),
             str(release_id),
             str(document_id),
-            status,
+            insight.status,
             insight.model_dump_json(),
         )
-        for insight in insights
+        for insight in product_insights
     ]
     with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
 
@@ -34,6 +36,7 @@ def create_insights(
             (id, project_id, release_id, document_id, status, details) VALUES (?,?,?,?,?,?)""",
             data,
         )
+    return [insight.id for insight in product_insights]
 
 
 def get_insights(
@@ -70,8 +73,7 @@ def create_concerns(
     project_id: UUID,
     release_id: UUID,
     document_id: UUID,
-    status: str,
-    concerns: List[Concern],
+    product_concerns: List[ProductConcern],
 ) -> List[UUID]:
 
     data = [
@@ -80,10 +82,10 @@ def create_concerns(
             str(project_id),
             str(release_id),
             str(document_id),
-            status,
+            concern.status,
             concern.model_dump_json(),
         )
-        for concern in concerns
+        for concern in product_concerns
     ]
     with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
 

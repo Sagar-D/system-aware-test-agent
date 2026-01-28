@@ -8,9 +8,8 @@ from langgraph.graph import add_messages
 import operator
 
 
-
 class PrdDocument(BaseModel):
-    id: str
+    id: UUID
     hash: str
     page_content: str
     version: str = None
@@ -31,16 +30,15 @@ class Priority(str, Enum):
 
 
 class InsightStatus(str, Enum):
-    draft = "draft"
-    needs_clarification = "needs_clarification"
-    approved = "approved"
-    locked = "locked"
+    PROPOSED = "PROPOSED"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class ConfidenceLevel(str, Enum):
-    low = "low"
-    medium = "medium"
-    high = "high"
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
 
 
 class ProductInsight(BaseModel):
@@ -91,18 +89,18 @@ class ProductInsight(BaseModel):
         description="Explicitly out-of-scope behaviors for this flow",
     )
 
-    source_documents: List[str] = Field(
-        default_factory=list,
+    source_document: UUID = Field(
+        None,
         description="Source document ids from which this insight was derived",
     )
 
     status: InsightStatus = Field(
-        default=InsightStatus.draft,
+        default=InsightStatus.PROPOSED,
         description="Current review status of the product insight",
     )
 
     confidence_level: ConfidenceLevel = Field(
-        default=ConfidenceLevel.medium,
+        default=ConfidenceLevel.MEDIUM,
         description="Confidence in correctness of this insight",
     )
 
@@ -122,16 +120,14 @@ class ConcernSeverity(str, Enum):
 
 
 class ConcernStatus(str, Enum):
-    open = "open"
-    clarified = "clarified"
-    accepted_risk = "accepted_risk"
-    closed = "closed"
+    OPEN = "OPEN"
+    RESOLVED = "RESOLVED"
 
 
-class Concern(BaseModel):
+class ProductConcern(BaseModel):
     id: UUID = Field(..., description="Unique identifier for the concern")
 
-    related_product_insight_id: str | None = Field(
+    related_product_insight_id: UUID | None = Field(
         None, description="Product insight this concern is related to (if applicable)"
     )
 
@@ -153,33 +149,40 @@ class Concern(BaseModel):
     )
 
     status: ConcernStatus = Field(
-        default=ConcernStatus.open, description="Current status of the concern"
+        default=ConcernStatus.OPEN, description="Current status of the concern"
     )
 
-    source_documents: List[str] = Field(
-        default_factory=list,
+    source_document: UUID = Field(
+        None,
         description="Source document ids from which this concern originated",
     )
 
 
-class BaseInsightsSchema(BaseModel) :
+class BaseInsightsSchema(BaseModel):
     document: PrdDocument
     insights: Annotated[List[ProductInsight], operator.add] = Field(
         default_factory=list
     )
-    concerns: Annotated[List[Concern], operator.add] = Field(default_factory=list)
+    concerns: Annotated[List[ProductConcern], operator.add] = Field(
+        default_factory=list
+    )
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
     config: Annotated[Dict[str, Any], operator.or_] = Field(default_factory=dict)
     var: Annotated[Dict[str, Any], operator.or_] = Field(default_factory=dict)
+
 
 class InsigntsValidatorState(BaseInsightsSchema):
     prd_chunk: str
     new_insights: Annotated[List[ProductInsight], operator.add] = Field(
         default_factory=list
     )
-    new_concerns: Annotated[List[Concern], operator.add] = Field(default_factory=list)
-    tool_messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
-    
+    new_concerns: Annotated[List[ProductConcern], operator.add] = Field(
+        default_factory=list
+    )
+    tool_messages: Annotated[List[BaseMessage], add_messages] = Field(
+        default_factory=list
+    )
+
 
 class PrdAnalyzerAgentState(BaseInsightsSchema):
     project_id: str

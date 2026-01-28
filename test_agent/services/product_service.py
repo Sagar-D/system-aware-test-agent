@@ -17,43 +17,40 @@ def generate_insights(document_ids: List[UUID], project_id: UUID, release_id: UU
 
     loaded_documents = get_documents_by_ids(document_ids)
 
-    for doc in loaded_documents:
-        doc["chunks"] = [
+    for loaded_doc in loaded_documents:
+        ## Update job_status table to IN_PROGRESS for document_id
+        loaded_doc["chunks"] = [
             Document(chunk["content"], id=chunk["id"])
-            for chunk in get_document_chunks(doc["id"])
+            for chunk in get_document_chunks(loaded_doc["id"])
         ]
 
-    documents = [
-        PrdDocument(
-            id=doc["id"],
-            hash=doc["hash"],
-            page_content=doc["content"],
-            chunks=doc["chunks"],
+        document = PrdDocument(
+            id=loaded_doc["id"],
+            hash=loaded_doc["hash"],
+            page_content=loaded_doc["content"],
+            chunks=loaded_doc["chunks"],
         )
-        for doc in loaded_documents
-    ]
-    
-    agent_state = PrdAnalyzerAgentState(
-        project_id=str(project_id),
-        release_id=str(release_id),
-        document=documents[0],
-    )
 
-    agent = PrdAnalyzerAgent()
-    result = agent.invoke(state=agent_state)
+        agent_state = PrdAnalyzerAgentState(
+            project_id=str(project_id),
+            release_id=str(release_id),
+            document=document,
+        )
 
-    create_insights(
-        project_id=project_id,
-        release_id=release_id,
-        document_id=document_ids[0],
-        status="PROPOSED",
-        insights=result["insights"]
-    )
+        agent = PrdAnalyzerAgent()
+        result = agent.invoke(state=agent_state)
 
-    create_concerns(
-        project_id=project_id,
-        release_id=release_id,
-        document_id=document_ids[0],
-        status="OPEN",
-        concerns=result["concerns"]
-    )
+        insight_ids = create_insights(
+            project_id=project_id,
+            release_id=release_id,
+            document_id=loaded_doc["id"],
+            product_insights=result["insights"],
+        )
+
+        concern_ids = create_concerns(
+            project_id=project_id,
+            release_id=release_id,
+            document_id=loaded_doc["id"],
+            product_concerns=result["concerns"],
+        )
+        ## Update job_status table to COMPLETED for document_id

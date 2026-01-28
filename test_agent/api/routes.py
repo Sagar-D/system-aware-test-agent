@@ -1,9 +1,11 @@
 from fastapi import FastAPI, BackgroundTasks
 import base64
 from uuid import UUID
+from uuid6 import uuid7
+from typing import List
 
 from test_agent.services.document_service import ingest_document
-from test_agent.services.product_service import generate_insights
+from test_agent.services.product_service import generate_insights, create_insights
 from test_agent.db.repositories.core import (
     get_organizations,
     get_projects,
@@ -31,7 +33,10 @@ from test_agent.schemas.api_schemas.document import (
 from test_agent.schemas.api_schemas.product import (
     GenerateProductInsightsRequest,
     GenerateProductInsightsResponse,
+    ProductInsightGenerationStatus,
+    CreateProductInsightRequest,
 )
+from test_agent.schemas.agent_schemas.prd_agent_schemas import ProductInsight
 
 
 app = FastAPI()
@@ -112,22 +117,38 @@ def upload_documents_endpoint(
 @app.post("/product/insights/generate")
 def generate_insights_endpoint(
     req_body: GenerateProductInsightsRequest, backround_tasks: BackgroundTasks
-) -> GenerateProductInsightsResponse:
+) -> List[GenerateProductInsightsResponse]:
 
-    if not does_document_exist(req_body.document_id):
-        return GenerateProductInsightsResponse(
-            status="FAIL",
-            message=f"No document found of document_id '{req_body.document_id}'",
-        )
+    response = []
+    filtered_document_ids = []
+    for document_id in req_body.document_ids:
+        if does_document_exist(document_id, req_body.project_id, req_body.release_id):
+            response.append(
+                GenerateProductInsightsResponse(
+                    document_id=document_id,
+                    status=ProductInsightGenerationStatus.INITIATED,
+                    message="Product insight generation initiated.",
+                )
+            )
+            filtered_document_ids.append(document_id)
+        else:
+            response.append(
+                GenerateProductInsightsResponse(
+                    document_id=document_id,
+                    status=ProductInsightGenerationStatus.FAILED,
+                    message=f"Document with id '{document_id}' does not exist in povided (project + release)",
+                )
+            )
+
     backround_tasks.add_task(
         generate_insights,
-        document_ids=[req_body.document_id],
+        document_ids=filtered_document_ids,
         project_id=req_body.project_id,
         release_id=req_body.release_id,
     )
-    return GenerateProductInsightsResponse(
-        message=f"Product insights generation initiated for documents - [{req_body.document_id}]"
-    )
+    ## Create entry in  job_status table with status as INITIATED for all filtered_document_ids
+
+    return response
 
 
 @app.get("/product/insights")
@@ -140,18 +161,47 @@ def get_concerns_endpoint(project_id: UUID, release_id: UUID, document_id: UUID 
     return get_concerns(project_id, release_id, document_id)
 
 
-# @app.post("product/insights")
-# def create_insights_endpoint() :
-#     pass
+@app.post("/product/insights")
+def create_insights_endpoint(req_body: CreateProductInsightRequest):
+    product_insights = [
+        ProductInsight(
+            id=uuid7(),
+            title=insight.title,
+            description=insight.description,
+            flow_type=insight.flow_type,
+            priority=insight.priority,
+            actors=insight.actors,
+            inputs=insight.inputs,
+            expected_outcomes=insight.expected_outcomes,
+            preconditions=insight.preconditions,
+            postconditions=insight.postconditions,
+            business_rules=insight.business_rules,
+            assumptions=insight.assumptions,
+            non_goals=insight.non_goals,
+            source_document=insight.source_document or req_body.document_id,
+            status=insight.status,
+            confidence_level=insight.confidence_level,
+        )
+        for insight in req_body.insights
+    ]
 
-# @app.post("product/concerns")
+    insight_ids = create_insights(
+        project_id=req_body.project_id,
+        release_id=req_body.release_id,
+        document_id=req_body.document_id,
+        product_insights=product_insights,
+    )
+    return {"insight_ids": insight_ids}
+
+
+# @app.post("/product/concerns")
 # def create_concerns_endpoint() :
 #     pass
 
-# @app.put("product/insights")
+# @app.put("/product/insights")
 # def update_insights_endpoint() :
 #     pass
 
-# @app.put("product/concerns")
+# @app.put("/product/concerns")
 # def update_concerns_endpoint() :
 #     pass

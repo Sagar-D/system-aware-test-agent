@@ -1,6 +1,7 @@
 import sqlite3
-from typing import List
+from typing import List, Dict
 from uuid import UUID
+import json
 from test_agent import config
 from test_agent.schemas.agent_schemas.prd_agent_schemas import (
     ProductInsight,
@@ -69,6 +70,54 @@ def get_insights(
     ]
 
 
+def get_insight(insight_id: UUID) -> Dict | None:
+
+    if not is_valid_uuid(insight_id):
+        raise ValueError("insight_id should be valid_uuid")
+
+    with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
+        result = conn.execute(
+            """SELECT id, project_id, release_id, document_id, status, details FROM product_insight
+            WHERE id = ? and deleted_at is null""",
+            (str(insight_id),),
+        ).fetchone()
+
+    if not result:
+        return None
+
+    return {
+        "id": result[0],
+        "project_id": result[1],
+        "release_id": result[2],
+        "document_id": result[3],
+        "status": result[4],
+        "details": json.loads(result[5]),
+    }
+
+
+def update_insight(insight_id: UUID, insight_patch: Dict):
+    existing_insight = get_insight(insight_id)
+    if not existing_insight:
+        raise ValueError(f"No insight found with id '{insight_id}'")
+
+    existing_insight["details"].update(insight_patch)
+
+    updates = ["details = ?"]
+    values = [json.dumps(existing_insight["details"])]
+    if insight_patch.get("status", None):
+        updates.append("status = ?")
+        values.append(insight_patch["status"])
+    values.append(str(insight_id))
+    with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
+        conn.execute(
+            f"""UPDATE product_insight 
+            SET modified_at = CURRENT_TIMESTAMP, 
+            {" , ".join(updates)} 
+            WHERE id = ?""",
+            tuple(values),
+        )
+
+
 def create_concerns(
     project_id: UUID,
     release_id: UUID,
@@ -94,6 +143,7 @@ def create_concerns(
             (id, project_id, release_id, document_id, status, details) VALUES (?,?,?,?,?,?)""",
             data,
         )
+    return [concern.id for concern in product_concerns]
 
 
 def get_concerns(
@@ -125,3 +175,52 @@ def get_concerns(
         {"id": concern[0], "status": concern[1], "details": concern[2]}
         for concern in result
     ]
+
+
+def get_concern(concern_id: UUID) -> Dict | None:
+
+    if not is_valid_uuid(concern_id):
+        raise ValueError("concern_id should be valid_uuid")
+
+    with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
+        result = conn.execute(
+            """SELECT id, project_id, release_id, document_id, status, details, resolved_by FROM product_concern
+            WHERE id = ? and deleted_at is null""",
+            (str(concern_id),),
+        ).fetchone()
+
+    if not result:
+        return None
+
+    return {
+        "id": result[0],
+        "project_id": result[1],
+        "release_id": result[2],
+        "document_id": result[3],
+        "status": result[4],
+        "details": json.loads(result[5]),
+        "resolved_by": result[6],
+    }
+
+
+def update_concern(concern_id: UUID, concern_patch: Dict):
+    existing_insight = get_concern(concern_id)
+    if not existing_insight:
+        raise ValueError(f"No insight found with id '{concern_id}'")
+
+    existing_insight["details"].update(concern_patch)
+
+    updates = ["details = ?"]
+    values = [json.dumps(existing_insight["details"])]
+    if concern_patch.get("status", None):
+        updates.append("status = ?")
+        values.append(concern_patch["status"])
+    values.append(str(concern_id))
+    with sqlite3.connect(config.RELATIONAL_DB_NAME) as conn:
+        conn.execute(
+            f"""UPDATE product_concern
+            SET modified_at = CURRENT_TIMESTAMP, 
+            {" , ".join(updates)} 
+            WHERE id = ?""",
+            tuple(values),
+        )

@@ -114,9 +114,9 @@ class ConcernType(str, Enum):
 
 
 class ConcernSeverity(str, Enum):
-    low = "low"
-    medium = "medium"
-    high = "high"
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
 
 
 class ConcernStatus(str, Enum):

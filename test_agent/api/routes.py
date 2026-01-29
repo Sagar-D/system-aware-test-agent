@@ -5,7 +5,11 @@ from uuid6 import uuid7
 from typing import List
 
 from test_agent.services.document_service import ingest_document
-from test_agent.services.product_service import generate_insights, create_insights
+from test_agent.services.product_service import (
+    generate_insights,
+    create_insights,
+    create_concerns,
+)
 from test_agent.db.repositories.core import (
     get_organizations,
     get_projects,
@@ -18,7 +22,12 @@ from test_agent.db.repositories.document import (
     get_documents_by_release,
     does_document_exist,
 )
-from test_agent.db.repositories.product import get_insights, get_concerns
+from test_agent.db.repositories.product import (
+    get_insights,
+    get_concerns,
+    update_insight,
+    update_concern,
+)
 from test_agent.schemas.api_schemas.core import (
     CreateOrganizationRequest,
     CreateProjectRequest,
@@ -35,8 +44,14 @@ from test_agent.schemas.api_schemas.product import (
     GenerateProductInsightsResponse,
     ProductInsightGenerationStatus,
     CreateProductInsightRequest,
+    CreateProductConcernRequest,
+    ProductInsightUpdate,
+    ProductConcernUpdate,
 )
-from test_agent.schemas.agent_schemas.prd_agent_schemas import ProductInsight
+from test_agent.schemas.agent_schemas.prd_agent_schemas import (
+    ProductInsight,
+    ProductConcern,
+)
 
 
 app = FastAPI()
@@ -194,14 +209,40 @@ def create_insights_endpoint(req_body: CreateProductInsightRequest):
     return {"insight_ids": insight_ids}
 
 
-# @app.post("/product/concerns")
-# def create_concerns_endpoint() :
-#     pass
+@app.post("/product/concerns")
+def create_concerns_endpoint(req_body: CreateProductConcernRequest):
+    product_concerns = [
+        ProductConcern(
+            id=uuid7(),
+            related_product_insight_id=concern.related_product_insight_id,
+            type=concern.type,
+            severity=concern.severity,
+            description=concern.description,
+            impact=concern.impact,
+            questions=concern.questions,
+            raised_by=concern.raised_by,
+            status=concern.status,
+            source_document=concern.source_document,
+        )
+        for concern in req_body.concerns
+    ]
 
-# @app.put("/product/insights")
-# def update_insights_endpoint() :
-#     pass
+    concern_ids = create_concerns(
+        project_id=req_body.project_id,
+        release_id=req_body.release_id,
+        document_id=req_body.document_id,
+        product_concerns=product_concerns,
+    )
+    return {"concern_ids": concern_ids}
 
-# @app.put("/product/concerns")
-# def update_concerns_endpoint() :
-#     pass
+
+@app.patch("/product/insight/{insight_id}")
+def update_insights_endpoint(insight_id: UUID, insight: ProductInsightUpdate):
+    update_insight(insight_id, insight.model_dump(exclude_unset=True))
+    return {"status": "SUCCESS"}
+
+
+@app.patch("/product/concern/{concern_id}")
+def update_concerns_endpoint(concern_id: UUID, concern: ProductConcernUpdate):
+    update_concern(concern_id, concern.model_dump(exclude_unset=True))
+    return {"status": "SUCCESS"}

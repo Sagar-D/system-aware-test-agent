@@ -154,7 +154,6 @@ def initialize_db():
             document_id UUID NOT NULL,
             status TEXT CHECK(status IN ({", ".join([f"'{status}'" for status in config.INSIGHT_STATUS])})) NOT NULL,
             details JSONB CHECK(json_valid(details)) NOT NULL,
-            resolved_by UUID DEFAULT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             modified_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             deleted_at DATETIME DEFAULT NULL,

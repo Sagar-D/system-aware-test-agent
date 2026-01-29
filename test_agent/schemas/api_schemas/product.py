@@ -7,10 +7,16 @@ from test_agent.schemas.agent_schemas.prd_agent_schemas import (
     FlowType,
     InsightStatus,
     ConfidenceLevel,
+    ConcernType,
+    ConcernSeverity,
+    ConcernStatus,
 )
 
 
 class GenerateProductInsightsRequest(BaseModel):
+    class Config:
+        extra = "forbid"
+
     project_id: UUID
     release_id: UUID
     document_ids: List[UUID]
@@ -24,12 +30,17 @@ class ProductInsightGenerationStatus(str, Enum):
 
 
 class GenerateProductInsightsResponse(BaseModel):
+    class Config:
+        extra = "forbid"
+
     document_id: UUID
     status: ProductInsightGenerationStatus
     message: str = ""
 
 
-class ProductInsight(BaseModel):
+class ProductInsightCreate(BaseModel):
+    class Config:
+        extra = "forbid"
 
     title: str = Field(..., description="Short title describing the product flow")
 
@@ -91,7 +102,91 @@ class ProductInsight(BaseModel):
 
 
 class CreateProductInsightRequest(BaseModel):
+    class Config:
+        extra = "forbid"
+
     project_id: UUID
     release_id: UUID
     document_id: UUID
-    insights: List[ProductInsight]
+    insights: List[ProductInsightCreate]
+
+
+class ProductConcernCreate(BaseModel):
+    class Config:
+        extra = "forbid"
+
+    related_product_insight_id: UUID | None = Field(
+        None, description="Product insight this concern is related to (if applicable)"
+    )
+
+    type: ConcernType = Field(..., description="Type of concern")
+    severity: ConcernSeverity = Field(..., description="Severity level of the concern")
+
+    description: str = Field(..., description="Description of the concern or ambiguity")
+
+    impact: str | None = Field(
+        None, description="Impact of this concern on system understanding or testing"
+    )
+
+    questions: List[str] = Field(
+        default_factory=list, description="Explicit clarification questions raised"
+    )
+
+    raised_by: str = Field(
+        default="system", description="Who raised the concern (system or human)"
+    )
+
+    status: ConcernStatus = Field(
+        default=ConcernStatus.OPEN, description="Current status of the concern"
+    )
+
+    source_document: UUID = Field(
+        None,
+        description="Source document ids from which this concern originated",
+    )
+
+
+class CreateProductConcernRequest(BaseModel):
+    class Config:
+        extra = "forbid"
+
+    project_id: UUID
+    release_id: UUID
+    document_id: UUID
+    concerns: List[ProductConcernCreate]
+
+
+class ProductInsightUpdate(BaseModel):
+    class Config:
+        extra = "forbid"
+
+    title: str | None = None
+    description: str | None = None
+    flow_type: FlowType | None = None
+    priority: Priority | None = None
+    actors: List[str] | None = None
+    inputs: List[str] | None = None
+    expected_outcomes: List[str] | None = None
+    preconditions: List[str] | None = None
+    postconditions: List[str] | None = None
+    business_rules: List[str] | None = None
+    assumptions: List[str] | None = None
+    non_goals: List[str] | None = None
+    source_document: UUID | None = None
+    status: InsightStatus | None = None
+    confidence_level: ConfidenceLevel | None = None
+
+
+class ProductConcernUpdate(BaseModel):
+    class Config:
+        extra = "forbid"
+
+    related_product_insight_id: UUID | None = None
+    type: ConcernType | None = None
+    severity: ConcernSeverity | None = None
+    description: str | None = None
+    impact: str | None = None
+    questions: List[str] | None = None
+    raised_by: str | None = None
+    status: ConcernStatus | None = None
+    source_document: UUID | None = None

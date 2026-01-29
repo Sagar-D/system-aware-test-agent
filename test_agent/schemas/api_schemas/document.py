@@ -13,6 +13,9 @@ class DocumentType(str, Enum):
 
 
 class Document(BaseModel):
+    class Config:
+        extra = "forbid"
+
     document_type: DocumentType
     document_content_base64: str
     document_name: str = None
@@ -20,10 +23,17 @@ class Document(BaseModel):
 
 
 class IngestDocumentRequest(BaseModel):
+    class Config:
+        extra = "forbid"
+
     project_id: UUID
     release_id: UUID
     document: Document
 
+
 class IngestDocumentResponse(BaseModel):
+    class Config:
+        extra = "forbid"
+
     status: str = "INITIATED"
     message: str = "Document Ingestion is initiated"

@@ -4,17 +4,30 @@ from enum import Enum
 from typing import Dict
 from test_agent.schemas.api_schemas.common import ReleaseStatus
 
-class CreateOrganizationRequest(BaseModel) :
+
+class CreateOrganizationRequest(BaseModel):
+    class Config:
+        extra = "forbid"
+
     name: str
 
-class CreateProjectRequest(BaseModel) :
+
+class CreateProjectRequest(BaseModel):
+    class Config:
+        extra = "forbid"
+
     org_id: UUID
     name: str
 
-class CreateReleaseRequest(BaseModel) :
+
+class CreateReleaseRequest(BaseModel):
+    class Config:
+        extra = "forbid"
+
     project_id: UUID
     release_label: str
     release_status: ReleaseStatus
+
 
 class ResourceType(str, Enum):
     ORGANIZATION = "ORGANIZATION"
@@ -22,11 +35,16 @@ class ResourceType(str, Enum):
     PROJECT = "PROJECT"
     RELEASE = "RELEASE"
 
-class TransactionStatus(str, Enum) :
+
+class TransactionStatus(str, Enum):
     SUCCESS = "SUCCESS"
     FAILURE = "FAILURE"
 
-class ResourceCreationResponse(BaseModel) :
+
+class ResourceCreationResponse(BaseModel):
+    class Config:
+        extra = "forbid"
+
     status: TransactionStatus = TransactionStatus.SUCCESS
     resource_type: ResourceType
     resource_id: UUID
